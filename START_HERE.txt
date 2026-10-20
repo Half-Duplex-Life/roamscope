@@ -1,0 +1,17 @@
+RoamScope integrated macOS test (requires approval for local apps on managed Macs)
+
+1. Unzip this archive into a NEW folder. Do not mix with older RoamScope.
+2. cd into the roamscope folder.
+3. python3 -m venv .venv && source .venv/bin/activate
+4. pip install -r requirements.txt
+5. cd RoamScopeHelper && bash build.sh && open RoamScopeWiFiHelper.app
+6. In helper window click Request Location Access (if not already authorized). KEEP HELPER OPEN.
+7. In another Terminal: cd into the roamscope folder; source .venv/bin/activate
+8. python roamscope.py --doctor
+9. python roamscope.py --duration 60 --interval 2 --csv
+
+Verify doctor prints an actual BSSID matching Option-click Wi-Fi menu.
+For a roam test, move between two known APs and verify the BSSID changes in CSV.
+If doctor still reports UNAVAILABLE, stop and send output.
+The helper listens on loopback TCP 18763 only. It does not alter Wi-Fi settings.
+Actual macOS execution and Location Services behavior must be verified on your Mac.

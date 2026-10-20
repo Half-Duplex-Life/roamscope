@@ -1,0 +1,5 @@
+RoamScope teammate test build - 2026-10-19
+
+Changes: helper exports CoreWLAN channel band and width descriptions; collector uses band hint for center frequency; terminal displays channel/band/frequency; HTML AP table displays primary frequency.
+
+Python syntax and simulated smoke test are validated in build environment. Swift helper must be compiled and exercised on macOS. Channel width reporting depends on the CoreWLAN string representation and is provisional; missing width remains blank rather than fabricated. Do not assume roaming detection is validated without a real AP-to-AP roam.

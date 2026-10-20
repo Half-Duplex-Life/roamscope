@@ -1,0 +1,43 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+# Local survey data / reports
+roamscope-out/
+*.sqlite
+*.sqlite3
+*-samples.csv
+*-roams.csv
+*-scans.csv
+report.html
+# Local macOS build artifacts
+RoamScopeHelper/*.app/
+.DS_Store
+# Secrets and credentials
+.env
+.env.*
+*.pem
+*.key
+
+# Captures, inventories and generated material
+*.pcap
+*.pcapng
+*.cap
+*.sqlite-*
+survey-analysis.md
+ap-names*.csv
+ap-names*.json
+*.log
+demo-output/
+build/
+dist/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.idea/
+.vscode/
+Thumbs.db
+*.p12
+*.pfx
