@@ -55,40 +55,84 @@ def _pct_to_dbm(pct):
 
 
 # ---------------------------------------------------------------- Windows ----
-def collect_windows():
+def valid_windows_bssid(value):
+    value = (value or "").strip().lower().replace("-", ":")
+    if not MAC_RE.fullmatch(value):
+        return None
+    octets = bytes.fromhex(value.replace(":", ""))
+    if octets in (b"\x00" * 6, b"\xff" * 6) or octets[0] & 1:
+        return None
+    return value
+
+
+def parse_windows_interfaces(out):
+    """English netsh fallback; tolerate AP BSSID, spacing and blank lines.
+
+    Never derive the associated BSSID from neighboring scans or client MAC.
+    Localized labels are handled by the native API, not guessed translations.
+    """
+    blocks, kv = [], {}
+    for line in out.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = " ".join(key.strip().lower().split())
+        if key == "name" and kv:
+            blocks.append(kv)
+            kv = {}
+        kv[key] = value.strip()
+    if kv:
+        blocks.append(kv)
+    connected = [x for x in blocks if x.get("state", "").lower() == "connected"]
+    if len(connected) != 1:
+        return None
+    block = connected[0]
     s = _base("windows")
-    out = run(["netsh", "wlan", "show", "interfaces"], timeout=10)
-    if not out:
-        return None, None
-    block = None
-    for chunk in re.split(r"\n\s*\n", out):
-        kv = {}
-        for line in chunk.splitlines():
-            if ":" in line:
-                k, v = line.split(":", 1)
-                kv[k.strip().lower()] = v.strip()
-        if kv.get("state", "").lower() == "connected":
-            block = kv
-            break
-    if not block:
-        return None, None
     s["ssid"] = block.get("ssid") or None
-    s["bssid"] = _norm_bssid(block.get("bssid"))
-    m = re.search(r"(\d+)", block.get("signal", ""))
-    if m:
+    s["bssid"] = valid_windows_bssid(block.get("ap bssid")) or valid_windows_bssid(block.get("bssid"))
+    m = re.fullmatch(r"(\d+)\s*%?", block.get("signal", ""))
+    if m and 0 <= int(m.group(1)) <= 100:
         s["rssi"] = _pct_to_dbm(int(m.group(1)))
     s["phy"] = block.get("radio type") or None
     ch = block.get("channel", "")
     if ch.isdigit():
         s["channel"] = int(ch)
-        band = (block.get("band") or "").lower()
-        hint = "6" if "6" in band else ("5" if band.startswith("5") else ("2.4" if "2.4" in band else None))
-        s["freq_mhz"] = channel_to_freq_mhz(int(ch), hint)
-    m = re.search(r"([\d.]+)", block.get("transmit rate (mbps)", ""))
-    if m:
-        s["tx_mbps"] = float(m.group(1))
-    # NOTE: Windows' public WLAN API does not expose the noise floor,
-    # so SNR can't be computed on this backend.
+        band = block.get("band", "").lower()
+        hint = "6" if band.startswith("6") else "5" if band.startswith("5") else "2.4" if band.startswith("2.4") else None
+        # Channel alone is ambiguous across bands. Do not invent a band.
+        s["freq_mhz"] = channel_to_freq_mhz(int(ch), hint) if hint else None
+    rate = block.get("transmit rate (mbps)", "").replace(",", ".")
+    if re.fullmatch(r"\d+(?:\.\d+)?", rate):
+        s["tx_mbps"] = float(rate)
+    return s
+
+
+_WINDOWS_DIAGNOSTIC = "Not sampled yet."
+
+
+def collect_windows():
+    global _WINDOWS_DIAGNOSTIC
+    from .windows_wifi import query_current
+    try:
+        fields, status = query_current()
+    except (OSError, AttributeError, ValueError) as exc:
+        fields, status = None, "Native Wi-Fi unavailable: %s" % exc
+    _WINDOWS_DIAGNOSTIC = status
+    if fields:
+        s = _base("windows")
+        s.update(fields)
+        # Supplement only when netsh identifies the SAME associated BSSID.
+        fallback = parse_windows_interfaces(run(["netsh", "wlan", "show", "interfaces"], timeout=10))
+        if fallback and fallback.get("bssid") == s["bssid"]:
+            for key in ("channel", "freq_mhz", "phy"):
+                if fallback.get(key) is not None:
+                    s[key] = fallback[key]
+        # Without matching band evidence, leave frequency unknown.
+        return s, None
+    if "Multiple connected" in status:
+        return None, None
+    s = parse_windows_interfaces(run(["netsh", "wlan", "show", "interfaces"], timeout=10))
+    _WINDOWS_DIAGNOSTIC += "; netsh fallback" if s else "; no usable netsh connection"
     return s, None
 
 
@@ -582,20 +626,17 @@ def diagnose_macos():
 
 
 def diagnose_windows():
-    out = run(["netsh", "wlan", "show", "interfaces"], timeout=10)
-    if not out.strip():
-        return False, ["`netsh wlan show interfaces` printed nothing.",
-                       "Is there a Wi-Fi adapter? Is its driver installed?"]
-    if "There is no wireless interface" in out:
-        return False, ["Windows reports no wireless interface.",
-                       "Enable the Wi-Fi adapter / install its driver."]
-    states = [s.strip() for s in re.findall(r"^\s*State\s*:\s*(.+)$", out, re.M)]
-    if any(s.lower() == "connected" for s in states):
-        return True, ["Wi-Fi interface found and connected — captures will work."]
-    return False, [
-        "Wi-Fi adapter found but not connected (state: %s)." % (", ".join(states) or "?"),
-        "Join a Wi-Fi network and rerun.",
-    ]
+    sample, _ = collect_windows()
+    lines = [_WINDOWS_DIAGNOSTIC]
+    if not sample:
+        return False, lines + ["No unambiguous connected Wi-Fi adapter is readable.",
+                               "Check the Wi-Fi adapter, WLAN AutoConfig service and Windows location permissions."]
+    lines += ["SSID: %s" % (sample.get("ssid") or "unavailable"),
+              "Connected BSSID: %s" % (sample.get("bssid") or "unavailable")]
+    if not valid_windows_bssid(sample.get("bssid")):
+        return False, lines + ["Telemetry is partial. Roaming cannot be validated without a connected BSSID.",
+                               "Check Windows Location Services/app access and inspect netsh wlan show interfaces."]
+    return True, lines + ["Connected BSSID is readable. A real AP-to-AP walk is still required for validation."]
 
 
 def diagnose_linux():

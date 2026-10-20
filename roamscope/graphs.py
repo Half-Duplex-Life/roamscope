@@ -41,17 +41,17 @@ def _roam_vlines(ax, roams):
 def _label(bssid, ap_names):
     if ap_names and bssid.lower() in ap_names:
         return ap_names[bssid.lower()]
-    return bssid[-8:].upper()
+    return bssid if bssid == "BSSID unavailable" else bssid[-8:].upper()
 
 
 def rssi_plot(samples, roams, ap_names=None):
     """RSSI over time, one line per BSSID, roam markers."""
-    pts = [s for s in samples if s["bssid"] and s["rssi"] is not None]
+    pts = [s for s in samples if s["rssi"] is not None]
     if not pts:
         return _empty("RSSI over time")
     by_bssid = {}
     for s in pts:
-        by_bssid.setdefault(s["bssid"], []).append(s)
+        by_bssid.setdefault(s["bssid"] or "BSSID unavailable", []).append(s)
     fig, ax = plt.subplots(figsize=(11, 4.2))
     for i, (bssid, p) in enumerate(sorted(by_bssid.items())):
         ax.plot([_dt(x["ts_epoch"]) for x in p], [x["rssi"] for x in p],
@@ -74,7 +74,7 @@ def snr_plot(samples, roams, ap_names=None):
         return _empty("SNR over time", "no noise-floor data on this platform")
     by_bssid = {}
     for s in pts:
-        by_bssid.setdefault(s["bssid"], []).append(s)
+        by_bssid.setdefault(s["bssid"] or "BSSID unavailable", []).append(s)
     fig, ax = plt.subplots(figsize=(11, 3.6))
     for i, (bssid, p) in enumerate(sorted(by_bssid.items())):
         ax.plot([_dt(x["ts_epoch"]) for x in p],

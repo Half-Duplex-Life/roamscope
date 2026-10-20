@@ -2,7 +2,16 @@
 import os
 from datetime import datetime
 
-from . import graphs, store
+from html import escape
+from . import store
+try:
+    from . import graphs
+    CHART_MIME = "image/png"
+except ModuleNotFoundError as exc:
+    if exc.name != "matplotlib":
+        raise
+    from . import svg_charts as graphs
+    CHART_MIME = "image/svg+xml"
 from .util import freq_to_band
 
 
@@ -91,11 +100,14 @@ def build_report(db_path, out_html, ap_names=None):
     stats, samples, roams = compute_stats(db, ap_names)
     db.close()
 
+    def safe(value):
+        return escape(str(value if value is not None else "—"), quote=True)
+
     def disp(bssid):
         """AP name when we have one, else the full BSSID (never truncated)."""
         if not bssid:
             return "—"
-        return ap_names.get(bssid.lower(), bssid)
+        return safe(ap_names.get(bssid.lower(), bssid))
 
     imgs = {
         "rssi": graphs.rssi_plot(samples, roams, ap_names),
@@ -105,10 +117,17 @@ def build_report(db_path, out_html, ap_names=None):
         "dwell": graphs.dwell_plot(samples, ap_names),
     }
 
+    valid_bssid = sum(bool(s.get("bssid")) for s in samples)
+    identity_note = ""
+    if valid_bssid < len(samples):
+        identity_note = ('<div class="note">Connected BSSID available in %d of %d samples. '
+                         'Roaming and AP dwell are unavailable or incomplete during identity gaps; '
+                         'zero observed events does not establish zero actual roams. '
+                         'Channel changes alone are not roaming evidence.</div>' % (valid_bssid, len(samples)))
     cards = [
         ("Samples", stats["n_samples"]),
-        ("Roams", stats["n_roams"]),
-        ("Roams/hour", stats.get("roams_per_hour", "—")),
+        ("Observed transitions", stats["n_roams"] if valid_bssid else "Unavailable"),
+        ("Transitions/hour", stats.get("roams_per_hour", "—") if valid_bssid else "Unavailable"),
         ("Avg RSSI", _fmt(stats.get("avg_rssi"), " dBm")),
         ("Worst RSSI", _fmt(stats.get("min_rssi"), " dBm")),
         ("Avg improvement", _fmt(stats.get("avg_improvement_db"), " dB")),
@@ -121,7 +140,7 @@ def build_report(db_path, out_html, ap_names=None):
 
     ap_rows = "".join(
         "<tr><td>%s</td><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
-            a["name"] or "—", a["bssid"], a["ssid"] or "—", a["samples"],
+            safe(a["name"] or "—"), safe(a["bssid"]), safe(a["ssid"] or "—"), a["samples"],
             _fmt(a["avg_rssi"], " dBm"), _fmt(a["min_rssi"], " dBm"),
             a["channel"] or "—", a["band"] or "—", _fmt(a["freq_mhz"], " MHz"))
         for a in stats["ap_rows"])
@@ -130,12 +149,12 @@ def build_report(db_path, out_html, ap_names=None):
     for i, r in enumerate(roams, 1):
         d = r["rssi_delta"]
         dcls = "pos" if (d is not None and d >= 0) else "neg"
-        rsn = r["reason"] or "—"
+        rsn = safe(r["reason"] or "—")
         rsn = '<span class="warn">%s</span>' % rsn if rsn == "sticky" else rsn
         roam_rows.append(
             "<tr><td>R%d</td><td>%s</td><td>%s</td><td><code>%s</code> &rarr; <code>%s</code></td>"
             "<td>%s &rarr; %s</td><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
-                i, r["ts"][11:], r["ssid"] or "—",
+                i, safe(r["ts"][11:]), safe(r["ssid"] or "—"),
                 disp(r["from_bssid"]), disp(r["to_bssid"]),
                 _fmt(r["rssi_before"]), _fmt(r["rssi_after"], " dBm"),
                 dcls, _fmt(d, " dB") if d is not None else "—",
@@ -143,14 +162,17 @@ def build_report(db_path, out_html, ap_names=None):
                 ("%s (%s dBm)" % (disp(r["best_neighbor_bssid"]),
                                   r["best_neighbor_rssi"])
                  if r["best_neighbor_bssid"] else "—")))
-    roam_rows = "".join(roam_rows) or '<tr><td colspan="9">No roams detected in this session.</td></tr>'
+    roam_rows = "".join(roam_rows) or '<tr><td colspan="9">No observed transitions. Check BSSID coverage before interpreting this result.</td></tr>'
 
     platform_note = ""
     if stats["platform"] == "windows":
-        platform_note = ('<div class="note">Windows reports signal as a 0&ndash;100%% quality figure, '
+        platform_note = ('<div class="note">Windows reports signal as a 0&ndash;100% quality figure, '
                          'so RSSI here is approximated as <code>dBm &asymp; quality/2 &minus; 100</code>. '
                          'Windows exposes no noise floor to apps, so the SNR chart is unavailable on this backend.</div>')
 
+    platform_note += identity_note
+    if CHART_MIME == "image/svg+xml":
+        platform_note += '<div class="note">Using built-in SVG charts; install Matplotlib for the original detailed charts.</div>'
     html = """<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>RoamScope report</title><style>%s</style></head><body>
 <h1>RoamScope report</h1>
@@ -171,12 +193,13 @@ def build_report(db_path, out_html, ap_names=None):
 <th>Channel</th><th>Band</th><th>Primary frequency</th></tr>%s</table>
 <div class="sub" style="margin-top:24px">RoamScope %s &middot; raw data in the .sqlite file next to this report</div>
 </body></html>""" % (
-        CSS, stats["platform"], stats["started"], stats["n_samples"],
+        CSS, safe(stats["platform"]), safe(stats["started"]), stats["n_samples"],
         _fmt(stats.get("span_s")), platform_note, cards_html,
         imgs["rssi"], imgs["snr"], imgs["delta"], imgs["neighbor"], imgs["dwell"],
-        roam_rows, ap_rows or '<tr><td colspan="7">No AP data.</td></tr>',
+        roam_rows, ap_rows or '<tr><td colspan="9">No associated AP identity available. Neighbor scan results are not proof of association.</td></tr>',
         __import__("roamscope").__version__,
     )
+    html = html.replace("data:image/png;base64,", "data:" + CHART_MIME + ";base64,")
     with open(out_html, "w", encoding="utf-8") as f:
         f.write(html)
     return out_html
