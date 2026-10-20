@@ -8,7 +8,7 @@ Use RoamScope to investigate endpoint roaming patterns while walking between AP 
 
 ## Architecture
 - **macOS:** Python collector reads Wi-Fi data from a locally built Swift CoreWLAN helper via a loopback HTTP endpoint on `127.0.0.1:18763`. Location permission may be needed for SSID/BSSID. Keep the helper open.
-- **Windows:** Python collector uses Windows Wi-Fi telemetry; no Swift helper. Windows live behavior remains **unverified** and requires a pilot.
+- **Windows:** Python collector uses Windows Wi-Fi telemetry; no Swift helper. Windows stationary collection passed a short single-AP check; AP-to-AP roaming remains pending.
 - **Outputs:** Local HTML report and timestamped CSVs; keep survey data out of source control.
 
 ## Technician quick workflow
@@ -42,7 +42,7 @@ netsh wlan show interfaces
 
 ## Validation status (October 2026)
 - macOS pilot: working SSID/BSSID collection and nine observed BSSID transitions aligning closely with a nine-event Mist cluster (0–2 seconds in the compared displayed times). This supports endpoint roaming-event detection; it does not validate every RF field, per-event 802.11r negotiation, or outage duration.
-- Windows: setup documented; actual collector and survey output require live validation.
+- Windows: short stationary check passed with 10/10 valid connected BSSID samples over approximately 18 seconds, using Native Wi-Fi. CSV/SQLite counts and generated HTML content checked. AP-to-AP roaming and browser display confirmation remain pending.
 - Neighbor scan export may be empty on macOS; do not infer neighbor AP quality from missing data.
 - Labels such as `sticky` and `fast` are RoamScope heuristics, **not** equivalent to Mist classifications or proof of 802.11r Fast Transition.
 

@@ -1,12 +1,14 @@
 # RoamScope
 
+See [validation results and Windows check](VALIDATION.md). Reports include a built-in SVG fallback when Matplotlib is unavailable.
+
 Endpoint-based Wi-Fi roaming and RF diagnostics tool for macOS and Windows.
 
 RoamScope samples connected endpoint Wi-Fi telemetry, detects observed BSSID transitions, and creates local reports for comparison with infrastructure telemetry.
 
 ## Validation status
 
-The reported macOS pilot detected **nine BSSID transitions**, aligned with **nine Mist roaming events within approximately 0–2 seconds** in compared displayed timestamps. This supports transition detection in that pilot. Raw captures and Mist exports are excluded. **Windows validation remains pending.** Per-roam 802.11r negotiation and actual roaming interruption duration are outside the current scope.
+The reported macOS pilot detected **nine BSSID transitions**, aligned with **nine Mist roaming events within approximately 0–2 seconds** in compared displayed timestamps. This supports transition detection in that pilot. Raw captures and Mist exports are excluded. **Windows stationary collection passed a short single-AP check:** 10 of 10 samples had a valid connected BSSID over approximately 18 seconds using Native Wi-Fi. Signal, channel, frequency and transmit rate were recorded; CSV/SQLite counts agreed and the report contained an AP entry and embedded charts. Windows AP-to-AP roaming validation remains pending. Browser display still requires user confirmation. Per-roam 802.11r negotiation and actual roaming interruption duration are outside the current scope.
 
 ## Features and architecture
 
@@ -14,7 +16,7 @@ The reported macOS pilot detected **nine BSSID transitions**, aligned with **nin
 - Records BSSID changes within the same SSID, signal changes, AP dwell time and available neighbor scans.
 - Produces SQLite, HTML graphs and optional CSV exports, a local live dashboard, AP-name mappings and synthetic simulation.
 - macOS: Python reads a locally built Swift CoreWLAN helper over loopback HTTP port 18763. Keep the helper open; Location Services permission may be needed. The bridge currently selects interface `en0`.
-- Windows: Python reads Windows Wi-Fi telemetry; no Swift helper is needed.
+- Windows: Python queries Native Wi-Fi for connected identity, with an English netsh fallback; no Swift helper is needed.
 
 Linux and Termux backends also exist in source; those are outside this pilot validation.
 

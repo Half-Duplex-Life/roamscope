@@ -41,3 +41,6 @@ dist/
 Thumbs.db
 *.p12
 *.pfx
+
+# Synthetic test working directories
+tests/tmp*/
