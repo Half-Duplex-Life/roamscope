@@ -52,9 +52,9 @@ netsh wlan show interfaces
 .\.venv\Scripts\python.exe roamscope.py --doctor
 ```
 
-Use that environment interpreter for later commands. Full instructions: [macOS PDF](docs/macOS_Setup_Guide.pdf), [Windows PDF](docs/Windows_Setup_Guide.pdf).
+Use that environment interpreter for later commands. Full instructions: [macOS PDF](docs/macOS_Setup_Guide.pdf), [Windows guide](docs/Windows_Setup_Guide.md) ([PDF](docs/Windows_Setup_Guide.pdf)).
 
-The original PDFs are preserved as historical installation/test guides. The macOS PDF references an older teammate package and pre-pilot status; the validation status above supersedes that status text. Follow organizational installation and sharing policies.
+The Windows guide covers installation, surveys, output files and troubleshooting. The macOS PDF remains a historical teammate guide with pre-pilot status; the validation status above supersedes that status text. Follow organizational installation and sharing policies.
 
 ## Usage
 
