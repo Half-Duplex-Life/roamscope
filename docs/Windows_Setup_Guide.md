@@ -139,4 +139,4 @@ Python installation: https://docs.python.org/3/using/windows.html
 Wi-Fi and location permissions: https://learn.microsoft.com/windows/win32/nativewifi/wi-fi-access-location-changes
 Project: https://github.com/Half-Duplex-Life/roamscope
 
-Guide updated 20 October 2026. The repository remains private until its owner explicitly approves public release. No open-source license has been selected; public visibility alone does not grant a reuse license.
+Guide updated 20 October 2026. The repository remains private until its owner explicitly approves public release. RoamScope is licensed under the MIT License, copyright (c) 2026 Param Chawla. See LICENSE for permissions and conditions.
