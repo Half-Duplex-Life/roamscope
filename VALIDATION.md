@@ -51,4 +51,4 @@ Run `python -m unittest discover -s tests -v` from the source folder.
 - [WLAN_ASSOCIATION_ATTRIBUTES](https://learn.microsoft.com/en-us/windows/win32/api/wlanapi/ns-wlanapi-wlan_association_attributes)
 - [WLAN_CONNECTION_ATTRIBUTES](https://learn.microsoft.com/en-us/windows/win32/api/wlanapi/ns-wlanapi-wlan_connection_attributes)
 
-No license has been added. No real network captures or identifiers are included. Keep the repository private.
+Licensed under the [MIT License](LICENSE), copyright (c) 2026 Param Chawla. No real network captures or identifiers are included.

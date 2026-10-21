@@ -92,4 +92,6 @@ See the [knowledge article](KNOWLEDGE_ARTICLE.md). Optional demo scripts produce
 
 Do not commit real captures, client MACs, private SSIDs/BSSIDs, AP inventories, internal screenshots, credentials or generated reports. Browser uploads do not automatically honor .gitignore.
 
-No license has been selected or added. The supplied archive does not establish employer IP clearance or third-party provenance. Confirm applicable rights before broader distribution or choosing a license. Keep the repository private unless explicitly authorized otherwise.
+RoamScope is licensed under the [MIT License](LICENSE). Copyright (c) 2026 Param Chawla. Use, modification, redistribution and commercial reuse are permitted subject to the license terms.
+
+Confirm applicable third-party and organizational rights before distribution. Repository visibility is managed separately from the license.
